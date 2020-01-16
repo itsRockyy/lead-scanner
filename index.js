@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const hbs = require("express-handlebars");
-var session = require("express-session");
+const session = require("express-session");
 const multer = require("multer");
 const ocr = require("./services/ocr");
 const textanalytics = require("./services/textanalytics");
@@ -11,12 +11,12 @@ const storage = multer.diskStorage({
   destination: "./public/uploads",
   filename: (req, file, cb) => {
     cb(null, req.session.user + ".jpeg");
-  }
+  },
 });
 
 //Init Upload
 const upload = multer({
-  storage: storage
+  storage: storage,
   //   limits: { fileSize: 10 }
 }).single("bcard");
 
@@ -27,7 +27,7 @@ app.use(
   session({
     secret: "keyboard cat",
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: true,
   })
 );
 
@@ -38,7 +38,7 @@ app.engine(
   "hbs",
   hbs({
     extname: "hbs",
-    defaultLayout: "main"
+    defaultLayout: "main",
   })
 );
 
@@ -46,15 +46,15 @@ app.use(express.static(__dirname + "/public"));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // Custom middleware to check user
-var authenticator = (req, res, next) => {
+const authenticator = (req, res, next) => {
   if (
     !req.session.user &&
     req.path != "/login" &&
     req.path != "/logout" &&
     req.path != "/"
-  ) {
+  )
     res.render("login", { title: "Login", layout: false });
-  } else next();
+  else next();
 };
 
 app.use(authenticator);
@@ -64,13 +64,13 @@ app.get("/", (req, res) => {
   else res.redirect("home");
 });
 
-app.get("/login", (req, res) => {
-  res.render("login", { title: "Login", layout: false });
-});
+app.get("/login", (req, res) =>
+  res.render("login", { title: "Login", layout: false })
+);
 
 app.post("/login", (req, res) => {
-  var valid_users = JSON.parse(process.env.VALID_USERS);
-  valid_users.forEach(element => {
+  const valid_users = JSON.parse(process.env.VALID_USERS);
+  valid_users.forEach((element) => {
     if (
       element.uid == req.body.user.toUpperCase() &&
       req.body.pwd == element.pwd
@@ -84,21 +84,16 @@ app.post("/login", (req, res) => {
   else res.redirect("home");
 });
 
-app.get("/listen", (req, res) => {
-  res.render("listen", { title: "Speak" });
-});
+app.get("/listen", (req, res) => res.render("listen", { title: "Speak" }));
 
 app.post("/listen", (req, res) => {
-  console.log(req.body);
   textanalytics
     .analyzeText(req.body.notes)
-    .then(response => {
-      console.log("Got response");
+    .then((response) => {
       req.session.lead = response.leadDetails;
       res.redirect("create-lead");
     })
-    .catch(err => {
-      console.log(err);
+    .catch((err) => {
       res.render("listen", { title: "Speak" });
     });
 });
@@ -108,9 +103,9 @@ app.get("/upload-image", (req, res) => {
 });
 
 app.get("/create-lead", (req, res) => {
-  var data = {
+  const data = {
     title: "Create Lead",
-    advisor: req.session.user.toUpperCase()
+    advisor: req.session.user.toUpperCase(),
   };
   if (!req.query.type) data.lead = req.session.lead;
   res.render("createlead", data);
@@ -121,44 +116,34 @@ app.get("/home", (req, res) => {
 });
 
 app.post("/upload", (req, res) => {
-  upload(req, res, err => {
-    if (err) {
-      res.render("error", { msg: err });
-    } else {
-      if (req.file == undefined) {
-        res.render("home");
-      } else {
+  upload(req, res, (err) => {
+    if (err) res.render("error", { msg: err });
+    else {
+      if (req.file == undefined) res.render("home");
+      else {
         const params = {
-          mode: req.query.mode
+          mode: req.query.mode,
         };
         //Add logic to call Microsofts OCR API & Text Analytics
-        var ocrResponse = ocr.getOCRText(req.session.user + ".jpeg", params);
+        const ocrResponse = ocr.getOCRText(req.session.user + ".jpeg", params);
         ocrResponse
-          .then(resp => {
-            console.log(resp);
+          .then((resp) => {
             textanalytics
               .analyzeText(resp.ocrText)
-              .then(response => {
-                console.log("Got response");
+              .then((response) => {
                 req.session.lead = response.leadDetails;
                 res.redirect("create-lead");
               })
-              .catch(err => {
-                console.log(err);
-              });
+              .catch(() => res.redirect("error"));
           })
-          .catch(err => {
-            console.log(err);
-            res.redirect("error");
-          });
+          .catch(() => res.redirect("error"));
       }
     }
   });
 });
 
 app.post("/create-lead", (req, res) => {
-  var createlead = require("./services/createlead");
-  // console.log(req.body);
+  const createlead = require("./services/createlead");
   const options = {
     uri: "https://webto.salesforce.com/servlet/servlet.WebToLead",
     form: {
@@ -171,8 +156,8 @@ app.post("/create-lead", (req, res) => {
       city: req.body.city,
       state: req.body.state,
       mobile: req.body.mobile,
-      phone: req.body.phone
-    }
+      phone: req.body.phone,
+    },
   };
   createlead.create(options, res);
 });
@@ -192,7 +177,7 @@ app.get("/logout", (req, res) => {
 });
 
 // Default route for showing 404 page
-app.get("*", function(req, res) {
+app.get("*", function (req, res) {
   res.render("404", { title: "Page Not Found" });
 });
 
